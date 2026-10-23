@@ -1,0 +1,42 @@
+{
+  "regional": [
+    {
+      "name": "Tele-MANAS (India)",
+      "phone": "14416 / 1800-891-4416",
+      "available": "24/7",
+      "description": "National tele-mental health programme offering confidential psychological support across Indian languages."
+    },
+    {
+      "name": "KIRAN Mental Health Helpline",
+      "phone": "1800-599-0019",
+      "available": "24/7",
+      "description": "Ministry of Social Justice 24/7 toll-free mental health rehabilitation helpline."
+    },
+    {
+      "name": "Vandrevala Foundation",
+      "phone": "+91 9999 666 555",
+      "available": "24/7",
+      "description": "Free, confidential 24/7 mental health counseling & crisis intervention."
+    },
+    {
+      "name": "iCall Psychosocial Helpline",
+      "phone": "+91 9152987821",
+      "available": "Mon-Sat 10:00 AM - 8:00 PM",
+      "description": "TISS initiative providing compassionate professional counseling."
+    }
+  ],
+  "international": [
+    {
+      "name": "988 Suicide & Crisis Lifeline (US & Canada)",
+      "phone": "988",
+      "available": "24/7",
+      "description": "Free, confidential support for people in distress via phone call or text."
+    },
+    {
+      "name": "Befrienders Worldwide",
+      "website": "https://www.befrienders.org",
+      "available": "24/7",
+      "description": "Global network of crisis helplines spanning over 30 countries."
+    }
+  ]
+}
