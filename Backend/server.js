@@ -6,20 +6,20 @@ import fileUpload from "express-fileupload";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import moodRoutes from "./routes/moodRoutes.js";
 import voiceRoute from "./routes/voiceRoute.js";
 
 dotenv.config();
 
 // Connect Database
 connectDB();
-console.log("MONGODB_URI =", process.env.MONGODB_URI);
 
 const app = express();
 
-// CORS FIX (REQUIRED FOR RENDER)
+// CORS Configuration
 app.use(
   cors({
-    origin: "*", // Allow ALL clients
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -32,11 +32,12 @@ app.use(fileUpload());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/mood", moodRoutes);
 app.use("/api", voiceRoute);
 
 // Default route
 app.get("/", (req, res) => {
-  res.send("Backend is running...");
+  res.send("MindFul Backend is running...");
 });
 
 // Start server
