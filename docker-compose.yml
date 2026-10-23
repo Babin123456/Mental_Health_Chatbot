@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: mindful_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mindful-network
+
+  backend:
+    build:
+      context: ./Backend
+    container_name: mindful_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/mindful
+      - JWT_SECRET=mindful_jwt_dev_secret_key_12345
+      - JWT_EXPIRES_IN=7d
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - PINECONE_API_KEY=${PINECONE_API_KEY:-}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-}
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
+    depends_on:
+      - mongodb
+    networks:
+      - mindful-network
+
+volumes:
+  mongo_data:
+
+networks:
+  mindful-network:
+    driver: bridge
