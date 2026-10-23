@@ -10,13 +10,14 @@ import LoginCard from "./components/layout/LoginCard.jsx";
 import CreateAccountCard from "./components/layout/CreateAccountCard.jsx";
 
 import { sendMessageToBot } from "./api/chatApi";
+import { useAuth } from "./context/AuthContext.jsx";
 
 export default function App() {
+  const { user, isLoggedIn, logout, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isChatActive, setIsChatActive] = useState(false);
   const [authView, setAuthView] = useState(null); // login / signup
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // ---------------- CHAT FUNCTIONS ---------------- //
@@ -106,6 +107,10 @@ export default function App() {
       timestamp
     };
 
+    setMessages((prev) => [...prev, userMessage]);
+    setIsChatActive(true);
+    setLoading(true);
+
     try {
       const response = await sendMessageToBot(text);
 
@@ -113,15 +118,14 @@ export default function App() {
         id: Date.now() + 1,
         text: response.data.reply,
         sender: "bot",
-        timestamp
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
 
-      setMessages([userMessage, botMessage]);
-      setIsChatActive(true);
+      setMessages((prev) => [...prev, botMessage]);
 
     } catch (error) {
-      setMessages([
-        userMessage,
+      setMessages((prev) => [
+        ...prev,
         {
           id: Date.now() + 1,
           text: `I understand you're mentioning: ${text}. Can you tell me more?`,
@@ -129,8 +133,8 @@ export default function App() {
           timestamp
         }
       ]);
-
-      setIsChatActive(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,14 +152,12 @@ export default function App() {
   const handleSwitchAuthView = (view) => setAuthView(view);
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // remove JWT
-    setIsLoggedIn(false);
+    logout();
     setIsChatActive(false);
     setMessages([]);
   };
 
   const handleAuthSuccess = () => {
-    setIsLoggedIn(true);
     setAuthView(null);
     setIsChatActive(false);
   };
@@ -182,6 +184,14 @@ export default function App() {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-purple-50">
+        <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   // ---------------- UI ---------------- //
 
   return (
@@ -205,6 +215,7 @@ export default function App() {
             onAuthClick={handleAuthClick}
             onLogout={handleLogout}
             isLoggedIn={isLoggedIn}
+            user={user}
           />
 
           <main className="flex-1 flex flex-col items-center justify-center text-center overflow-y-auto p-4">
@@ -214,7 +225,7 @@ export default function App() {
               <h2 className="text-xl text-gray-700">
                 👋 Welcome! Please{" "}
                 <button
-                  className="text-purple-600 font-semibold underline"
+                  className="text-purple-600 font-semibold underline cursor-pointer"
                   onClick={handleAuthClick}
                 >
                   login
@@ -250,7 +261,7 @@ export default function App() {
           <div className="relative">
             <button
               onClick={handleCloseAuth}
-              className="absolute -top-3 -right-3 bg-white text-gray-800 rounded-full h-8 w-8 flex items-center justify-center text-xl font-bold shadow-lg"
+              className="absolute -top-3 -right-3 bg-white text-gray-800 rounded-full h-8 w-8 flex items-center justify-center text-xl font-bold shadow-lg cursor-pointer"
             >
               &times;
             </button>
