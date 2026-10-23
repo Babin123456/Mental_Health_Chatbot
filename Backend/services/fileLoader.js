@@ -1,35 +1,71 @@
 import fs from "fs";
 
-// Load .jsonl file correctly
-export function loadJSONL(filePath) {
-  const lines = fs.readFileSync(filePath, "utf8").trim().split("\n");
+export function loadDatasetFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    console.warn(`Dataset file not found: ${filePath}`);
+    return [];
+  }
 
-  let combined = "";
+  const content = fs.readFileSync(filePath, "utf8").trim();
+  if (!content) return [];
 
-  for (let line of lines) {
+  // Check if it's standard JSON
+  if (filePath.endsWith(".json")) {
     try {
-      const obj = JSON.parse(line);
-
-      // JSONL common formats
-      if (obj.text) combined += obj.text + "\n";
-      else if (obj.prompt) combined += obj.prompt + "\n";
-      else if (obj.response) combined += obj.response + "\n";
-      else if (obj.answer) combined += obj.answer + "\n";
-      else combined += JSON.stringify(obj) + "\n"; // fallback
-
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => {
+          if (typeof item === "string") return item;
+          if (item.text) return item.text;
+          if (item.prompt && item.response) return `Prompt: ${item.prompt}\nResponse: ${item.response}`;
+          if (item.question && item.answer) return `Question: ${item.question}\nAnswer: ${item.answer}`;
+          return JSON.stringify(item);
+        });
+      }
+      return [JSON.stringify(parsed)];
     } catch (err) {
-      console.error("❌ Invalid JSONL line:", line);
+      console.warn(`Error parsing JSON ${filePath}, attempting line parse:`, err.message);
     }
   }
 
-  return combined;
+  // Parse JSONL
+  const lines = content.split("\n");
+  const extracted = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj.text) extracted.push(obj.text);
+      else if (obj.prompt && obj.response) extracted.push(`Prompt: ${obj.prompt}\nResponse: ${obj.response}`);
+      else if (obj.question && obj.answer) extracted.push(`Question: ${obj.question}\nAnswer: ${obj.answer}`);
+      else if (obj.response) extracted.push(obj.response);
+      else extracted.push(JSON.stringify(obj));
+    } catch {
+      extracted.push(trimmed);
+    }
+  }
+
+  return extracted;
 }
 
-// Chunk long text for RAG
-export function chunkText(text, size = 300) {
-  let chunks = [];
-  for (let i = 0; i < text.length; i += size) {
+// Retain backward compatibility alias for existing code
+export function loadJSONL(filePath) {
+  const entries = loadDatasetFile(filePath);
+  return entries.join("\n");
+}
+
+export function chunkText(text, size = 300, overlap = 50) {
+  if (!text) return [];
+  const chunks = [];
+  let i = 0;
+
+  while (i < text.length) {
     chunks.push(text.slice(i, i + size));
+    i += size - overlap;
+    if (i >= text.length) break;
   }
+
   return chunks;
 }

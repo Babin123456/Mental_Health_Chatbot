@@ -1,13 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import "dotenv/config";
+import { generateEmbedding } from "./embeddingService.js";
 import { searchEmbedding } from "./vectorStore.js";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-
-// Embedding model
-const embedder = genAI.getGenerativeModel({
-  model: "text-embedding-004",
-});
+const apiKey = process.env.GOOGLE_API_KEY || "dummy_key";
+const genAI = new GoogleGenerativeAI(apiKey);
 
 // Chat model
 const chatModel = genAI.getGenerativeModel({
@@ -22,23 +19,27 @@ const creativeKeywords = [
 
 export const ragQuery = async (query) => {
   try {
+    if (!query || typeof query !== "string") {
+      return "Hello! I am here to listen and help. What is on your mind today?";
+    }
+
     // Skip RAG for creative requests
     if (creativeKeywords.some(k => query.toLowerCase().includes(k))) {
       const aiRes = await chatModel.generateContent(query);
       return aiRes.response.text();
     }
 
-    // Create embedding
-    const embedRes = await embedder.embedContent(query);
-    const queryEmbedding = embedRes.embedding.values;
-
-    // Search in Pinecone
-    const results = await searchEmbedding(queryEmbedding);
-
-    const context = results.map(r => r.text).join("\n");
+    let context = "";
+    try {
+      const queryEmbedding = await generateEmbedding(query);
+      const results = await searchEmbedding(queryEmbedding);
+      context = results.map(r => r.text).join("\n");
+    } catch (embErr) {
+      console.warn("Embedding / vector search fallback:", embErr.message);
+    }
 
     const prompt = `
-You are a friendly, supportive mental health assistant.
+You are MindFul, a friendly, supportive mental health assistant.
 Use the context ONLY if relevant. Otherwise answer normally.
 
 Context:
@@ -54,6 +55,6 @@ Reply kindly in 2–3 lines.
 
   } catch (error) {
     console.error("RAG Error:", error);
-    return "I'm facing some issues, please try again.";
+    return "I am here with you and listening. I'm facing a slight connection delay, but please feel free to continue sharing.";
   }
 };

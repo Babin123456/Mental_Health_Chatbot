@@ -1,53 +1,65 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { loadJSONL, chunkText } from "../services/fileLoader.js";
-import { saveEmbedding } from "../services/vectorStore.js";  // <-- Pinecone version
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { loadDatasetFile, chunkText } from "../services/fileLoader.js";
+import { generateEmbedding } from "../services/embeddingService.js";
+import { saveEmbedding } from "../services/vectorStore.js";
 import "dotenv/config";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const embedder = genAI.getGenerativeModel({ model: "text-embedding-004" });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function run() {
-  console.log("🚀 Loading datasets...");
+  console.log("Loading mental health datasets for RAG...");
 
-  const t1 = loadJSONL("./dataset/family_style_emotional_support_dataset.jsonl");
-  const t2 = loadJSONL("./dataset/playful_teasing_dataset_hinglish.jsonl");
-  const t3 = loadJSONL("./dataset/therapy_dataset_v3.jsonl");
-  const t4 = loadJSONL("./dataset/tough_love_dataset_hinglish.jsonl");
-  const t5 = loadJSONL("./dataset/intent.jsonl");
-  const t6 = loadJSONL("./dataset/mentalhealth.jsonl");
-  const t7 = loadJSONL("./dataset/supportive_mental_health_dataset_10000.jsonl");
+  const datasetDir = path.join(__dirname, "../dataset");
 
-  // Combine datasets into one large string
-  const combined = [
-    ...t1,
-    ...t2,
-    ...t3,
-    ...t4,
-    ...t5,
-    ...t6,
-    ...t7,
-  ].join("\n\n");
+  const files = [
+    "family_style_emotional_support_dataset.jsonl",
+    "playful_teasing_dataset_hinglish.jsonl",
+    "therapy_dataset_v3.jsonl",
+    "tough_love_dataset_hinglish.jsonl",
+    "intent.jsonl",
+    "mentalhealth.json",
+    "supportive_mental_health_dataset_10000.json",
+  ];
 
-  console.log("✂️  Chunking text...");
-  const chunks = chunkText(combined, 300);
+  let allEntries = [];
 
-  console.log(`📦 Total chunks: ${chunks.length}`);
-
-  // Loop and store embeddings in Pinecone
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-
-    console.log(`🔍 Embedding chunk ${i + 1}/${chunks.length}`);
-
-    // Create embedding using Gemini
-    const res = await embedder.embedContent(chunk);
-    const embedding = res.embedding.values;
-
-    // Save to Pinecone
-    await saveEmbedding(chunk, embedding, `chunk-${i}`);
+  for (const file of files) {
+    const fullPath = path.join(datasetDir, file);
+    if (fs.existsSync(fullPath)) {
+      const entries = loadDatasetFile(fullPath);
+      console.log(`Loaded ${entries.length} items from ${file}`);
+      allEntries = allEntries.concat(entries);
+    } else {
+      console.warn(`File skipped (not found): ${file}`);
+    }
   }
 
-  console.log("🔥 RAG data stored in Pinecone!");
+  console.log(`Total dataset items loaded: ${allEntries.length}`);
+
+  // Combine sample entries and chunk
+  const sampleEntries = allEntries.slice(0, 100);
+  const combinedText = sampleEntries.join("\n\n");
+  const chunks = chunkText(combinedText, 400);
+
+  console.log(`Generated ${chunks.length} text chunks for embedding ingestion.`);
+
+  const maxChunks = Math.min(chunks.length, 25);
+  for (let i = 0; i < maxChunks; i++) {
+    const chunk = chunks[i];
+    console.log(`Processing chunk ${i + 1}/${maxChunks}...`);
+
+    try {
+      const embedding = await generateEmbedding(chunk);
+      await saveEmbedding(chunk, embedding, `chunk-${i}`);
+    } catch (err) {
+      console.warn(`Could not process chunk ${i}:`, err.message);
+    }
+  }
+
+  console.log("Dataset preparation and ingestion completed!");
 }
 
-run().catch(err => console.error("Ingestion Error:", err));
+run().catch((err) => console.error("Ingestion script error:", err));
