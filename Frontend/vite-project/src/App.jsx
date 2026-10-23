@@ -5,6 +5,7 @@ import Header from "./components/layout/Header.jsx";
 import Home from "./components/chat/Home.jsx";
 import ChatHistory from "./components/chat/ChatHistory.jsx";
 import MessageInput from "./components/chat/MessageInput.jsx";
+import CrisisBanner from "./components/common/CrisisBanner.jsx";
 
 import LoginCard from "./components/layout/LoginCard.jsx";
 import CreateAccountCard from "./components/layout/CreateAccountCard.jsx";
@@ -15,7 +16,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isChatActive, setIsChatActive] = useState(false);
-  const [authView, setAuthView] = useState(null); // login / signup
+  const [authView, setAuthView] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +33,8 @@ export default function App() {
           id: 1,
           text: response.data.reply,
           sender: "bot",
-          timestamp
+          timestamp,
+          isCrisis: response.data.isCrisis,
         }
       ]);
 
@@ -74,7 +76,8 @@ export default function App() {
         id: Date.now() + 1,
         text: response.data.reply,
         sender: "bot",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        isCrisis: response.data.isCrisis,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -106,6 +109,10 @@ export default function App() {
       timestamp
     };
 
+    setMessages((prev) => [...prev, userMessage]);
+    setIsChatActive(true);
+    setLoading(true);
+
     try {
       const response = await sendMessageToBot(text);
 
@@ -113,15 +120,15 @@ export default function App() {
         id: Date.now() + 1,
         text: response.data.reply,
         sender: "bot",
-        timestamp
+        timestamp,
+        isCrisis: response.data.isCrisis,
       };
 
-      setMessages([userMessage, botMessage]);
-      setIsChatActive(true);
+      setMessages((prev) => [...prev, botMessage]);
 
     } catch (error) {
-      setMessages([
-        userMessage,
+      setMessages((prev) => [
+        ...prev,
         {
           id: Date.now() + 1,
           text: `I understand you're mentioning: ${text}. Can you tell me more?`,
@@ -129,8 +136,8 @@ export default function App() {
           timestamp
         }
       ]);
-
-      setIsChatActive(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,15 +147,12 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // ---------------- AUTH FUNCTIONS ---------------- //
-
   const handleAuthClick = () => setAuthView("login");
   const handleCloseAuth = () => setAuthView(null);
-
   const handleSwitchAuthView = (view) => setAuthView(view);
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // remove JWT
+    localStorage.removeItem("token");
     setIsLoggedIn(false);
     setIsChatActive(false);
     setMessages([]);
@@ -182,14 +186,11 @@ export default function App() {
     return null;
   };
 
-  // ---------------- UI ---------------- //
-
   return (
     <>
       <GlobalStyles />
 
       <div className="flex h-screen w-screen bg-gradient-to-br from-purple-100 via-white to-orange-100 overflow-hidden">
-
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -199,7 +200,6 @@ export default function App() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col max-h-screen">
-
           <Header
             onMenuClick={() => setSidebarOpen(true)}
             onAuthClick={handleAuthClick}
@@ -207,14 +207,15 @@ export default function App() {
             isLoggedIn={isLoggedIn}
           />
 
-          <main className="flex-1 flex flex-col items-center justify-center text-center overflow-y-auto p-4">
+          {/* Crisis Hotline & Safety Banner */}
+          <CrisisBanner />
 
-            {/* Before Login */}
+          <main className="flex-1 flex flex-col items-center justify-center text-center overflow-y-auto p-4">
             {!isLoggedIn && (
               <h2 className="text-xl text-gray-700">
                 👋 Welcome! Please{" "}
                 <button
-                  className="text-purple-600 font-semibold underline"
+                  className="text-purple-600 font-semibold underline cursor-pointer"
                   onClick={handleAuthClick}
                 >
                   login
@@ -223,7 +224,6 @@ export default function App() {
               </h2>
             )}
 
-            {/* After Login, Before Chat Start */}
             {isLoggedIn && !isChatActive && (
               <Home
                 onStartConversation={handleStartConversation}
@@ -231,30 +231,26 @@ export default function App() {
               />
             )}
 
-            {/* Active chat */}
             {isLoggedIn && isChatActive && (
               <ChatHistory messages={messages} loading={loading} />
             )}
           </main>
 
-          {/* Chat input */}
           {isLoggedIn && isChatActive && (
             <MessageInput onSend={handleSendMessage} />
           )}
         </div>
       </div>
 
-      {/* Authentication Modal */}
       {authView && (
         <div className="fixed inset-0 bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center p-4 z-50">
           <div className="relative">
             <button
               onClick={handleCloseAuth}
-              className="absolute -top-3 -right-3 bg-white text-gray-800 rounded-full h-8 w-8 flex items-center justify-center text-xl font-bold shadow-lg"
+              className="absolute -top-3 -right-3 bg-white text-gray-800 rounded-full h-8 w-8 flex items-center justify-center text-xl font-bold shadow-lg cursor-pointer"
             >
               &times;
             </button>
-
             {renderAuthCard()}
           </div>
         </div>
